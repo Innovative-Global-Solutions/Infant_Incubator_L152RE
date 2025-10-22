@@ -123,7 +123,7 @@ int main(void)
       if (currentState1 == GPIO_PIN_RESET){
     	  lcd_clear(&lcd1);
     	  lcd_gotoxy(&lcd1, 0, 1);
-    	  lcd_puts(&lcd1, "White Button");
+    	  lcd_puts(&lcd1, "White boy play that funky music");
     	  HAL_Delay(100);
       }
       else if(currentState2 == GPIO_PIN_RESET){
