@@ -7,23 +7,23 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
   1 .text         0000296c  0800013c  0800013c  0000113c  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
-  2 .rodata       00000054  08002aa8  08002aa8  00003aa8  2**2
+  2 .rodata       0000003c  08002aa8  08002aa8  00003aa8  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  3 .ARM.extab    00000000  08002afc  08002afc  0000400c  2**0
+  3 .ARM.extab    00000000  08002ae4  08002ae4  0000400c  2**0
                   CONTENTS, READONLY
-  4 .ARM          00000008  08002afc  08002afc  00003afc  2**2
+  4 .ARM          00000008  08002ae4  08002ae4  00003ae4  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  5 .preinit_array 00000000  08002b04  08002b04  0000400c  2**0
+  5 .preinit_array 00000000  08002aec  08002aec  0000400c  2**0
                   CONTENTS, ALLOC, LOAD, DATA
-  6 .init_array   00000004  08002b04  08002b04  00003b04  2**2
+  6 .init_array   00000004  08002aec  08002aec  00003aec  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  7 .fini_array   00000004  08002b08  08002b08  00003b08  2**2
+  7 .fini_array   00000004  08002af0  08002af0  00003af0  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  8 .data         0000000c  20000000  08002b0c  00004000  2**2
+  8 .data         0000000c  20000000  08002af4  00004000  2**2
                   CONTENTS, ALLOC, LOAD, DATA
-  9 .bss          000000bc  2000000c  08002b18  0000400c  2**2
+  9 .bss          000000bc  2000000c  08002b00  0000400c  2**2
                   ALLOC
- 10 ._user_heap_stack 00000600  200000c8  08002b18  000040c8  2**0
+ 10 ._user_heap_stack 00000600  200000c8  08002b00  000040c8  2**0
                   ALLOC
  11 .ARM.attributes 00000029  00000000  00000000  0000400c  2**0
                   CONTENTS, READONLY
@@ -824,7 +824,7 @@ int main(void)
  8000746:	2100      	movs	r1, #0
  8000748:	4618      	mov	r0, r3
  800074a:	f7ff ff2d 	bl	80005a8 <lcd_gotoxy>
-    	  lcd_puts(&lcd1, "White Button");
+    	  lcd_puts(&lcd1, "White");
  800074e:	463b      	mov	r3, r7
  8000750:	491b      	ldr	r1, [pc, #108]	@ (80007c0 <main+0xf8>)
  8000752:	4618      	mov	r0, r3
@@ -848,7 +848,7 @@ int main(void)
  8000772:	2100      	movs	r1, #0
  8000774:	4618      	mov	r0, r3
  8000776:	f7ff ff17 	bl	80005a8 <lcd_gotoxy>
-    	  lcd_puts(&lcd1, "Black Button");
+    	  lcd_puts(&lcd1, "Black");
  800077a:	463b      	mov	r3, r7
  800077c:	4911      	ldr	r1, [pc, #68]	@ (80007c4 <main+0xfc>)
  800077e:	4618      	mov	r0, r3
@@ -872,7 +872,7 @@ int main(void)
  800079e:	2100      	movs	r1, #0
  80007a0:	4618      	mov	r0, r3
  80007a2:	f7ff ff01 	bl	80005a8 <lcd_gotoxy>
-    	  lcd_puts(&lcd1, "Yellow Button");
+    	  lcd_puts(&lcd1, "Yellow");
  80007a6:	463b      	mov	r3, r7
  80007a8:	4907      	ldr	r1, [pc, #28]	@ (80007c8 <main+0x100>)
  80007aa:	4618      	mov	r0, r3
@@ -885,8 +885,8 @@ int main(void)
  80007b8:	20000028 	.word	0x20000028
  80007bc:	40020000 	.word	0x40020000
  80007c0:	08002aa8 	.word	0x08002aa8
- 80007c4:	08002ab8 	.word	0x08002ab8
- 80007c8:	08002ac8 	.word	0x08002ac8
+ 80007c4:	08002ab0 	.word	0x08002ab0
+ 80007c8:	08002ab8 	.word	0x08002ab8
 
 080007cc <SystemClock_Config>:
 /**
@@ -1827,7 +1827,7 @@ LoopFillZerobss:
   ldr r1, =_edata
  8000c30:	2000000c 	.word	0x2000000c
   ldr r2, =_sidata
- 8000c34:	08002b0c 	.word	0x08002b0c
+ 8000c34:	08002af4 	.word	0x08002af4
   ldr r2, =_sbss
  8000c38:	2000000c 	.word	0x2000000c
   ldr r4, =_ebss
@@ -5362,7 +5362,7 @@ HAL_StatusTypeDef HAL_RCC_OscConfig(RCC_OscInitTypeDef  *RCC_OscInitStruct)
  80020b4:	e019      	b.n	80020ea <HAL_RCC_OscConfig+0x506>
  80020b6:	bf00      	nop
  80020b8:	40023800 	.word	0x40023800
- 80020bc:	08002ae4 	.word	0x08002ae4
+ 80020bc:	08002acc 	.word	0x08002acc
  80020c0:	20000000 	.word	0x20000000
  80020c4:	20000004 	.word	0x20000004
  80020c8:	42470020 	.word	0x42470020
@@ -6074,7 +6074,7 @@ HAL_StatusTypeDef HAL_RCC_ClockConfig(const RCC_ClkInitTypeDef  *RCC_ClkInitStru
  8002496:	bf00      	nop
  8002498:	40023c00 	.word	0x40023c00
  800249c:	40023800 	.word	0x40023800
- 80024a0:	08002ae4 	.word	0x08002ae4
+ 80024a0:	08002acc 	.word	0x08002acc
  80024a4:	20000000 	.word	0x20000000
  80024a8:	20000004 	.word	0x20000004
 
@@ -6324,7 +6324,7 @@ uint32_t HAL_RCC_GetSysClockFreq(void)
  800269c:	40023800 	.word	0x40023800
  80026a0:	00f42400 	.word	0x00f42400
  80026a4:	007a1200 	.word	0x007a1200
- 80026a8:	08002ad8 	.word	0x08002ad8
+ 80026a8:	08002ac0 	.word	0x08002ac0
 
 080026ac <HAL_RCC_GetHCLKFreq>:
   * @note   The SystemCoreClock CMSIS variable is used to store System Clock Frequency
@@ -6369,7 +6369,7 @@ uint32_t HAL_RCC_GetPCLK1Freq(void)
  80026dc:	4618      	mov	r0, r3
  80026de:	bd80      	pop	{r7, pc}
  80026e0:	40023800 	.word	0x40023800
- 80026e4:	08002af4 	.word	0x08002af4
+ 80026e4:	08002adc 	.word	0x08002adc
 
 080026e8 <HAL_RCC_GetPCLK2Freq>:
   * @note   Each time PCLK2 changes, this function must be called to update the
@@ -6395,7 +6395,7 @@ uint32_t HAL_RCC_GetPCLK2Freq(void)
  8002704:	4618      	mov	r0, r3
  8002706:	bd80      	pop	{r7, pc}
  8002708:	40023800 	.word	0x40023800
- 800270c:	08002af4 	.word	0x08002af4
+ 800270c:	08002adc 	.word	0x08002adc
 
 08002710 <RCC_SetFlashLatencyFromMSIRange>:
             voltage range
@@ -6925,10 +6925,10 @@ static void UART_SetConfig(UART_HandleTypeDef *huart)
  8002a7a:	4798      	blx	r3
  8002a7c:	3601      	adds	r6, #1
  8002a7e:	e7f2      	b.n	8002a66 <__libc_init_array+0x1e>
- 8002a80:	08002b04 	.word	0x08002b04
- 8002a84:	08002b04 	.word	0x08002b04
- 8002a88:	08002b04 	.word	0x08002b04
- 8002a8c:	08002b08 	.word	0x08002b08
+ 8002a80:	08002aec 	.word	0x08002aec
+ 8002a84:	08002aec 	.word	0x08002aec
+ 8002a88:	08002aec 	.word	0x08002aec
+ 8002a8c:	08002af0 	.word	0x08002af0
 
 08002a90 <_init>:
  8002a90:	b5f8      	push	{r3, r4, r5, r6, r7, lr}
