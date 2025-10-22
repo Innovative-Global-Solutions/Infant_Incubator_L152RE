@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "I2C_LCD.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,6 +40,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -50,6 +52,7 @@ UART_HandleTypeDef huart2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -89,26 +92,82 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+
+  /* USER CODE BEGIN 2 */
+  I2C_LCD_HandleTypeDef lcd1;
+  lcd1.hi2c = &hi2c1;   // use global hi2c1 (initialized by MX_I2C1_Init)
+  lcd1.address = 0x4E;  // usually 0x4E for 0x27 modules
+  lcd_init(&lcd1);
+
+	lcd1.address = 0x4E;   // gives 0x4E, if your module is 0x27
+	lcd_init(&lcd1);
+	uint8_t lastButtonState1 = 0; // pulled-up input, so default HIGH
+	uint8_t lastButtonState2 = 0; // pulled-up input, so default HIGH
+	uint8_t lastButtonState3 = 0; // pulled-up input, so default HIGH
+
+
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint8_t lastButtonState = 1; // pulled-up input, so default HIGH
-
   while (1)
   {
-      uint8_t currentState = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_1);
-
+      uint8_t currentState1 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10);
+      uint8_t currentState2 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8);
+      uint8_t currentState3 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_9);
       // Detect falling edge: HIGH -> LOW
-      if (currentState == GPIO_PIN_RESET && lastButtonState == GPIO_PIN_SET)
-      {
-          HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_7);
-      }
 
-      lastButtonState = currentState;
+      if (currentState1 == GPIO_PIN_RESET){
+    	  lcd_clear(&lcd1);
+    	  lcd_gotoxy(&lcd1, 0, 1);
+    	  lcd_puts(&lcd1, "White Button");
+    	  HAL_Delay(100);
+      }
+      else if(currentState2 == GPIO_PIN_RESET){
+    	  lcd_clear(&lcd1);
+    	  lcd_gotoxy(&lcd1, 0, 1);
+    	  lcd_puts(&lcd1, "Black Button");
+    	  HAL_Delay(100);
+      }
+      else if(currentState3 == GPIO_PIN_RESET){
+    	  lcd_clear(&lcd1);
+    	  lcd_gotoxy(&lcd1, 0, 1);
+    	  lcd_puts(&lcd1, "Yellow Button");
+    	  HAL_Delay(100);
+      }
+//
+//      if (currentState1 == GPIO_PIN_RESET && lastButtonState1 == GPIO_PIN_SET)
+//      {
+//
+//      }
+//
+//      lastButtonState1 = currentState1;
+//
+//
+//      // Detect falling edge: HIGH -> LOW
+//      if (currentState2 == GPIO_PIN_RESET && lastButtonState2 == GPIO_PIN_SET)
+//      {
+//
+//      }
+//
+//      lastButtonState2 = currentState2;
+//
+//
+//      // Detect falling edge: HIGH -> LOW
+//      if (currentState3 == GPIO_PIN_RESET && lastButtonState3 == GPIO_PIN_SET)
+//      {
+//
+//      }
+//
+//      lastButtonState3 = currentState3;
   }
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+//  }
   /* USER CODE END 3 */
 }
 
@@ -153,6 +212,40 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
@@ -218,7 +311,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : PA1 */
   GPIO_InitStruct.Pin = GPIO_PIN_1;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LD2_Pin PA7 */
@@ -226,6 +319,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PA8 PA9 PA10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -246,9 +345,11 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
-  while (1)
+  while (1);
   {
-  }
+  };
+
+
   /* USER CODE END Error_Handler_Debug */
 }
 #ifdef USE_FULL_ASSERT

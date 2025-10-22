@@ -1,5 +1,5 @@
-Drivers/STM32L1xx_HAL_Driver/Src/stm32l1xx_hal_gpio.o: \
- ../Drivers/STM32L1xx_HAL_Driver/Src/stm32l1xx_hal_gpio.c \
+Drivers/STM32L1xx_HAL_Driver/Src/stm32l1xx_hal_i2c.o: \
+ ../Drivers/STM32L1xx_HAL_Driver/Src/stm32l1xx_hal_i2c.c \
  ../Drivers/STM32L1xx_HAL_Driver/Inc/stm32l1xx_hal.h \
  ../Core/Inc/stm32l1xx_hal_conf.h \
  ../Drivers/STM32L1xx_HAL_Driver/Inc/stm32l1xx_hal_rcc.h \
