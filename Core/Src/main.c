@@ -31,6 +31,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+	#define SHT31_ADDR 0x44 << 1 // SHT31 I2C address shifted left by 1 bit
+	#define CMD_MEASURE_TEMP 0x2C06 // Command to measure temperature
+	#define CMD_MEASURE_HUMIDITY 0x2C10 // Command to measure humidity
 
 /* USER CODE END PD */
 
@@ -60,6 +63,32 @@ static void MX_I2C1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+char buffer[100] = {0};
+float temp = 0;
+float humid = 0;
+
+
+void SHT31_ReadTempHumidity(float* temp, float* humidity)
+{
+    uint8_t data[6];
+    uint16_t temp_raw, humidity_raw;
+    // Send command to measure temperature
+    HAL_I2C_Master_Transmit(&hi2c1, SHT31_ADDR, CMD_MEASURE_TEMP, 2, 1000);
+    HAL_Delay(50);
+    // Read temperature data
+    HAL_I2C_Master_Receive(&hi2c1, SHT31_ADDR, data, 3, 1000);
+    temp_raw = data[0] << 8 | data[1];
+    *temp = ((float)temp_raw * 175.0f / 65535.0f) - 45.0f;
+    // Send command to measure humidity
+    HAL_I2C_Master_Transmit(&hi2c1, SHT31_ADDR, CMD_MEASURE_HUMIDITY, 2, 1000);
+    HAL_Delay(50);
+    // Read humidity data
+    HAL_I2C_Master_Receive(&hi2c1, SHT31_ADDR, data, 3, 1000);
+    humidity_raw = data[0] << 8 | data[1];
+    *humidity = ((float)humidity_raw * 100.0f / 65535.0f);
+}
+
+
 /* USER CODE END 0 */
 
 /**
@@ -70,6 +99,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+
 
   /* USER CODE END 1 */
 
@@ -108,7 +138,6 @@ int main(void)
 	uint8_t lastButtonState3 = 0; // pulled-up input, so default HIGH
 
 
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -120,24 +149,29 @@ int main(void)
       uint8_t currentState3 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_9);
       // Detect falling edge: HIGH -> LOW
 
-      if (currentState1 == GPIO_PIN_RESET){
-    	  lcd_clear(&lcd1);
-    	  lcd_gotoxy(&lcd1, 0, 1);
-    	  lcd_puts(&lcd1, "White boy play that funky music");
-    	  HAL_Delay(100);
-      }
-      else if(currentState2 == GPIO_PIN_RESET){
-    	  lcd_clear(&lcd1);
-    	  lcd_gotoxy(&lcd1, 0, 1);
-    	  lcd_puts(&lcd1, "Black Button");
-    	  HAL_Delay(100);
-      }
-      else if(currentState3 == GPIO_PIN_RESET){
-    	  lcd_clear(&lcd1);
-    	  lcd_gotoxy(&lcd1, 0, 1);
-    	  lcd_puts(&lcd1, "Yellow Button");
-    	  HAL_Delay(100);
-      }
+      lcd_clear(&lcd1);
+      lcd_gotooxy(&lcd1, 0, 1);
+
+
+      sprintf(buffer, "temp: %4.2f", &temp);
+
+//    	  lcd_clear(&lcd1);
+//    	  lcd_gotoxy(&lcd1, 0, 1);
+//    	  lcd_puts(&lcd1, "White boy play that funky music");
+//    	  HAL_Delay(100);
+//      }
+//      else if(currentState2 == GPIO_PIN_RESET){
+//    	  lcd_clear(&lcd1);
+//    	  lcd_gotoxy(&lcd1, 0, 1);
+//    	  lcd_puts(&lcd1, "Black Button");
+//    	  HAL_Delay(100);
+//      }
+//      else if(currentState3 == GPIO_PIN_RESET){
+//    	  lcd_clear(&lcd1);
+//    	  lcd_gotoxy(&lcd1, 0, 1);
+//    	  lcd_puts(&lcd1, "Yellow Button");
+//    	  HAL_Delay(100);
+//      }
 //
 //      if (currentState1 == GPIO_PIN_RESET && lastButtonState1 == GPIO_PIN_SET)
 //      {
