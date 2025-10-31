@@ -73,14 +73,14 @@ void SHT31_ReadTempHumidity(float* temp, float* humidity)
     uint8_t data[6];
     uint16_t temp_raw, humidity_raw;
     // Send command to measure temperature
-    HAL_I2C_Master_Transmit(&hi2c1, SHT31_ADDR, CMD_MEASURE_TEMP, 2, 1000);
+    HAL_I2C_Master_Transmit_IT(&hi2c1, SHT31_ADDR, CMD_MEASURE_TEMP, 2);
     HAL_Delay(50);
     // Read temperature data
     HAL_I2C_Master_Receive(&hi2c1, SHT31_ADDR, data, 3, 1000);
     temp_raw = data[0] << 8 | data[1];
     *temp = ((float)temp_raw * 175.0f / 65535.0f) - 45.0f;
     // Send command to measure humidity
-    HAL_I2C_Master_Transmit(&hi2c1, SHT31_ADDR, CMD_MEASURE_HUMIDITY, 2, 1000);
+    HAL_I2C_Master_Transmit_IT(&hi2c1, SHT31_ADDR, CMD_MEASURE_HUMIDITY, 2);
     HAL_Delay(50);
     // Read humidity data
     HAL_I2C_Master_Receive(&hi2c1, SHT31_ADDR, data, 3, 1000);
@@ -150,10 +150,10 @@ int main(void)
       // Detect falling edge: HIGH -> LOW
 
       lcd_clear(&lcd1);
-      lcd_gotooxy(&lcd1, 0, 1);
+      lcd_gotoxy(&lcd1, 0, 1);
 
 
-      sprintf(buffer, "temp: %4.2f", &temp);
+//      sprintf(buffer, "temp: %4.2f", &temp);
 
 //    	  lcd_clear(&lcd1);
 //    	  lcd_gotoxy(&lcd1, 0, 1);
