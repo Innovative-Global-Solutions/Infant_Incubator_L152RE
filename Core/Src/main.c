@@ -23,7 +23,15 @@
 /* USER CODE BEGIN Includes */
 #include "I2C_LCD.h"
 /* USER CODE END Includes */
+#include <stdio.h>
+extern UART_HandleTypeDef huart2;  // <-- tell compiler this variable exists elsewhere
 
+/* Redirect printf to USART2 */
+int __io_putchar(int ch)
+{
+    HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+    return ch;
+}
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
@@ -70,23 +78,26 @@ float humid = 0;
 
 void SHT31_ReadTempHumidity(float* temp, float* humidity)
 {
+    uint8_t cmd[2] = {0x2C, 0x06};
     uint8_t data[6];
     uint16_t temp_raw, humidity_raw;
-    // Send command to measure temperature
-    HAL_I2C_Master_Transmit_IT(&hi2c1, SHT31_ADDR, CMD_MEASURE_TEMP, 2);
-    HAL_Delay(50);
-    // Read temperature data
-    HAL_I2C_Master_Receive(&hi2c1, SHT31_ADDR, data, 3, 1000);
-    temp_raw = data[0] << 8 | data[1];
-    *temp = ((float)temp_raw * 175.0f / 65535.0f) - 45.0f;
-    // Send command to measure humidity
-    HAL_I2C_Master_Transmit_IT(&hi2c1, SHT31_ADDR, CMD_MEASURE_HUMIDITY, 2);
-    HAL_Delay(50);
-    // Read humidity data
-    HAL_I2C_Master_Receive(&hi2c1, SHT31_ADDR, data, 3, 1000);
-    humidity_raw = data[0] << 8 | data[1];
-    *humidity = ((float)humidity_raw * 100.0f / 65535.0f);
+
+    // Send measurement command
+    HAL_I2C_Master_Transmit(&hi2c1, SHT31_ADDR, cmd, 2, HAL_MAX_DELAY);
+    HAL_Delay(20);
+
+    // Read 6 bytes (temp + humidity)
+    HAL_I2C_Master_Receive(&hi2c1, SHT31_ADDR, data, 6, HAL_MAX_DELAY);
+
+    // Parse raw values
+    temp_raw = (data[0] << 8) | data[1];
+    humidity_raw = (data[3] << 8) | data[4];
+
+    // Convert to human-readable units
+    *temp = -45.0f + 175.0f * ((float)temp_raw / 65535.0f);
+    *humidity = 100.0f * ((float)humidity_raw / 65535.0f);
 }
+
 
 
 /* USER CODE END 0 */
@@ -152,6 +163,12 @@ int main(void)
       lcd_clear(&lcd1);
       lcd_gotoxy(&lcd1, 0, 1);
 
+
+      SHT31_ReadTempHumidity(&temp, &humid);
+      printf("Temperature: %d C\r\n", (int)temp);
+      printf("Humidity: %d %%RH\r\n\r\n", (int)humid);
+
+      HAL_Delay(1000); // 1 second update
 
 //      sprintf(buffer, "temp: %4.2f", &temp);
 
