@@ -136,67 +136,36 @@ int main(void)
 	uint8_t lastButtonState1 = 0; // pulled-up input, so default HIGH
 	uint8_t lastButtonState2 = 0; // pulled-up input, so default HIGH
 	uint8_t lastButtonState3 = 0; // pulled-up input, so default HIGH
+	int i = 20;
 
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+
+
   while (1)
   {
       uint8_t currentState1 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10);
       uint8_t currentState2 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8);
       uint8_t currentState3 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_9);
       // Detect falling edge: HIGH -> LOW
+      uint8_t data = 0x00; // All control lines low, backlight off
+      HAL_I2C_Master_Transmit(&hi2c1, lcd1.address, &data, 1, HAL_MAX_DELAY);
+		lcd_clear(&lcd1);
 
-      lcd_clear(&lcd1);
-      lcd_gotooxy(&lcd1, 0, 1);
+      		lcd_gotoxy(&lcd1, 0, 1);
+
+	sprintf(buffer, "test");
+		lcd_puts(&lcd1, buffer);
+
+//      if((i--)>0){
+//
+//      }
 
 
-      sprintf(buffer, "temp: %4.2f", &temp);
-
-//    	  lcd_clear(&lcd1);
-//    	  lcd_gotoxy(&lcd1, 0, 1);
-//    	  lcd_puts(&lcd1, "White boy play that funky music");
-//    	  HAL_Delay(100);
-//      }
-//      else if(currentState2 == GPIO_PIN_RESET){
-//    	  lcd_clear(&lcd1);
-//    	  lcd_gotoxy(&lcd1, 0, 1);
-//    	  lcd_puts(&lcd1, "Black Button");
-//    	  HAL_Delay(100);
-//      }
-//      else if(currentState3 == GPIO_PIN_RESET){
-//    	  lcd_clear(&lcd1);
-//    	  lcd_gotoxy(&lcd1, 0, 1);
-//    	  lcd_puts(&lcd1, "Yellow Button");
-//    	  HAL_Delay(100);
-//      }
-//
-//      if (currentState1 == GPIO_PIN_RESET && lastButtonState1 == GPIO_PIN_SET)
-//      {
-//
-//      }
-//
-//      lastButtonState1 = currentState1;
-//
-//
-//      // Detect falling edge: HIGH -> LOW
-//      if (currentState2 == GPIO_PIN_RESET && lastButtonState2 == GPIO_PIN_SET)
-//      {
-//
-//      }
-//
-//      lastButtonState2 = currentState2;
-//
-//
-//      // Detect falling edge: HIGH -> LOW
-//      if (currentState3 == GPIO_PIN_RESET && lastButtonState3 == GPIO_PIN_SET)
-//      {
-//
-//      }
-//
-//      lastButtonState3 = currentState3;
   }
     /* USER CODE END WHILE */
 
