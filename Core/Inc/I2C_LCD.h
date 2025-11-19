@@ -72,4 +72,6 @@ void lcd_gotoxy(I2C_LCD_HandleTypeDef *lcd, int col, int row);
  */
 void lcd_clear(I2C_LCD_HandleTypeDef *lcd);
 
+
+
 #endif /* I2C_LCD_H */

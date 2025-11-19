@@ -5,6 +5,7 @@
 
 #include "I2C_LCD.h"
 
+
 /**
  * @brief  Sends a command to the LCD.
  * @param  lcd: Pointer to the LCD handle
@@ -140,3 +141,4 @@ void lcd_putchar(I2C_LCD_HandleTypeDef *lcd, char ch)
 {
     lcd_send_data(lcd, ch);  // Send the character to the display
 }
+
