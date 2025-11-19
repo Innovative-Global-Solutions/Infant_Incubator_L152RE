@@ -22,10 +22,19 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "I2C_LCD.h"
+#include <string.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef enum{
+   HOME_SCREEN,
+   BPM_SCREEN,
+   HUMIDITY_SCREEN,
+   INC_TEMP_SCREEN,
+   INF_TEMP_SCREEN,
+} MenuState;
 
 /* USER CODE END PTD */
 
@@ -41,7 +50,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
-
+I2C_LCD_HandleTypeDef lcd1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -96,18 +105,32 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /* USER CODE BEGIN 2 */
-  I2C_LCD_HandleTypeDef lcd1;
   lcd1.hi2c = &hi2c1;   // use global hi2c1 (initialized by MX_I2C1_Init)
-  lcd1.address = 0x4E;  // usually 0x4E for 0x27 modules
+  lcd1.address = (0x27 << 1);
   lcd_init(&lcd1);
 
-	lcd1.address = 0x4E;   // gives 0x4E, if your module is 0x27
-	lcd_init(&lcd1);
-	uint8_t lastButtonState1 = 0; // pulled-up input, so default HIGH
-	uint8_t lastButtonState2 = 0; // pulled-up input, so default HIGH
-	uint8_t lastButtonState3 = 0; // pulled-up input, so default HIGH
+  // Pulled-down input so default low.
+  uint8_t lastButtonState1 = 0;
+  uint8_t lastButtonState2 = 0;
+  uint8_t lastButtonState3 = 0;
+  uint8_t lastButtonState4 = 0;
+  uint8_t lastButtonState5 = 0;
 
+  MenuState currentScreen = HOME_SCREEN;
+  MenuState lastScreen = INF_TEMP_SCREEN;
 
+  // Random testing variables
+  char buffer[24] = {0};
+  int averageBPM = 120;
+  int minBPM = 80;
+  int maxBPM = 150;
+  int averageInfTemp = 96;
+  int minInfTemp = 93;
+  int maxInfTemp = 98;
+  int averageHumidity = 97;
+  int averageIncTemp = 70;
+  int maxHumidity = 98;
+  int minHumidity = 54;
 
   /* USER CODE END 2 */
 
@@ -115,59 +138,151 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+      // Reading the button states
       uint8_t currentState1 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10);
-      uint8_t currentState2 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8);
-      uint8_t currentState3 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_9);
-      // Detect falling edge: HIGH -> LOW
+      uint8_t currentState2 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_9);
+      uint8_t currentState3 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5);
+      uint8_t currentState4 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4);
+      uint8_t currentState5 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10);
 
-      if (currentState1 == GPIO_PIN_RESET){
-    	  lcd_clear(&lcd1);
+      // Button presses
+      if (currentState1 == GPIO_PIN_RESET && lastButtonState1 == GPIO_PIN_SET)
+          currentScreen = BPM_SCREEN;
+      if (currentState2 == GPIO_PIN_RESET && lastButtonState2 == GPIO_PIN_SET)
+          currentScreen = HUMIDITY_SCREEN;
+      if (currentState3 == GPIO_PIN_RESET && lastButtonState3 == GPIO_PIN_SET)
+          currentScreen = INC_TEMP_SCREEN;
+      if (currentState4 == GPIO_PIN_RESET && lastButtonState4 == GPIO_PIN_SET)
+          currentScreen = INF_TEMP_SCREEN;
+      if (currentState5 == GPIO_PIN_RESET && lastButtonState5 == GPIO_PIN_SET)
+          currentScreen = HOME_SCREEN;
+
+      // Saving the button state
+      lastButtonState1 = currentState1;
+      lastButtonState2 = currentState2;
+      lastButtonState3 = currentState3;
+      lastButtonState4 = currentState4;
+      lastButtonState5 = currentState5;
+
+      // Only update screen on changes
+	  if (currentScreen != lastScreen){
+		  lcd_clear(&lcd1);
+
+      // Home screen as default
+      switch(currentScreen){
+      case HOME_SCREEN:
+          lcd_gotoxy(&lcd1, 0, 0);
+          lcd_puts(&lcd1, "Home:");
+          // BPM line
+          lcd_gotoxy(&lcd1, 0, 1);
+          sprintf(buffer, "BPM: %d", averageBPM);
+          lcd_puts(&lcd1, buffer);
+          // Humidity Line
+          lcd_gotoxy(&lcd1, 11, 1);
+          sprintf(buffer, "HUM: %d.4", averageHumidity);
+          lcd_puts(&lcd1, buffer);
+          // Infant Temp Line
+          lcd_gotoxy(&lcd1, 0, 2);
+          sprintf(buffer, "INC: %d.4", averageIncTemp);
+          lcd_puts(&lcd1, buffer);
+          // Incubator Temp Line
+          lcd_gotoxy(&lcd1, 11, 2);
+          sprintf(buffer, "INF: %d.4", averageInfTemp);
+          lcd_puts(&lcd1, buffer);
+          break;
+
+      case BPM_SCREEN:
+    	  lcd_gotoxy(&lcd1, 0, 0);
+    	  lcd_puts(&lcd1, "BPM:");
+    	  lcd_gotoxy(&lcd1, 17, 0);
+    	  sprintf(buffer, "%d", averageBPM);
+    	  // Print average BPM here.
+    	  lcd_puts(&lcd1, buffer);
+    	  // Printing the minimum BPM bound.
     	  lcd_gotoxy(&lcd1, 0, 1);
-    	  lcd_puts(&lcd1, "White boy play that funky music");
-    	  HAL_Delay(100);
-      }
-      else if(currentState2 == GPIO_PIN_RESET){
-    	  lcd_clear(&lcd1);
+    	  lcd_puts(&lcd1, "Min. Bound:");
+    	  lcd_gotoxy(&lcd1, 18, 1);
+    	  sprintf(buffer, "%d", minBPM);
+    	  lcd_puts(&lcd1, buffer);
+    	  // Printing the maximum BPM bound.
+    	  lcd_gotoxy(&lcd1, 0, 2);
+    	  lcd_puts(&lcd1, "Max. Bound:");
+    	  lcd_gotoxy(&lcd1, 17, 2);
+    	  sprintf(buffer, "%d", maxBPM);
+    	  lcd_puts(&lcd1, buffer);
+    	  break;
+
+      case HUMIDITY_SCREEN:
+    	  lcd_gotoxy(&lcd1, 0, 0);
+   	      lcd_puts(&lcd1, "Humidity Screen");
+    	  lcd_gotoxy(&lcd1, 16, 0);
+    	  sprintf(buffer, "%d.4", averageHumidity);
+    	  // Print average humidity here.
+    	  lcd_puts(&lcd1, buffer);
+    	  // Printing the minimum humidity bound.
     	  lcd_gotoxy(&lcd1, 0, 1);
-    	  lcd_puts(&lcd1, "Black Button");
-    	  HAL_Delay(100);
-      }
-      else if(currentState3 == GPIO_PIN_RESET){
-    	  lcd_clear(&lcd1);
+    	  lcd_puts(&lcd1, "Min. Bound:");
+    	  lcd_gotoxy(&lcd1, 16, 1);
+    	  sprintf(buffer, "%d.4", minHumidity);
+    	  lcd_puts(&lcd1, buffer);
+    	  // Printing the maximum humidity bound.
+    	  lcd_gotoxy(&lcd1, 0, 2);
+    	  lcd_puts(&lcd1, "Max. Bound:");
+    	  lcd_gotoxy(&lcd1, 16, 2);
+    	  sprintf(buffer, "%d.4", maxHumidity);
+    	  lcd_puts(&lcd1, buffer);
+    	  break;
+
+      case INC_TEMP_SCREEN:
+    	  lcd_gotoxy(&lcd1, 0, 0);
+    	  lcd_puts(&lcd1, "Incubator Temp:");
+    	  lcd_gotoxy(&lcd1, 16, 0);
+    	  sprintf(buffer, "%d.4", averageInfTemp);
+    	  // Print average infant temperature here.
+    	  lcd_puts(&lcd1, buffer);
+    	  // Printing the minimum temperature bound.
     	  lcd_gotoxy(&lcd1, 0, 1);
-    	  lcd_puts(&lcd1, "Yellow Button");
-    	  HAL_Delay(100);
-      }
-//
-//      if (currentState1 == GPIO_PIN_RESET && lastButtonState1 == GPIO_PIN_SET)
-//      {
-//
-//      }
-//
-//      lastButtonState1 = currentState1;
-//
-//
-//      // Detect falling edge: HIGH -> LOW
-//      if (currentState2 == GPIO_PIN_RESET && lastButtonState2 == GPIO_PIN_SET)
-//      {
-//
-//      }
-//
-//      lastButtonState2 = currentState2;
-//
-//
-//      // Detect falling edge: HIGH -> LOW
-//      if (currentState3 == GPIO_PIN_RESET && lastButtonState3 == GPIO_PIN_SET)
-//      {
-//
-//      }
-//
-//      lastButtonState3 = currentState3;
-  }
+    	  lcd_puts(&lcd1, "Min. Bound:");
+    	  lcd_gotoxy(&lcd1, 16, 1);
+    	  sprintf(buffer, "%d.4", minInfTemp);
+    	  lcd_puts(&lcd1, buffer);
+    	  // Printing the maximum temperature bound.
+    	  lcd_gotoxy(&lcd1, 0, 2);
+    	  lcd_puts(&lcd1, "Max. Bound:");
+    	  lcd_gotoxy(&lcd1, 16, 2);
+    	  sprintf(buffer, "%d.4", maxInfTemp);
+    	  lcd_puts(&lcd1, buffer);
+    	  break;
+
+      case INF_TEMP_SCREEN:
+    	  lcd_gotoxy(&lcd1, 0, 0);
+    	  lcd_puts(&lcd1, "Infant Temp:");
+    	  lcd_gotoxy(&lcd1, 16, 0);
+    	  sprintf(buffer, "%d.4", averageInfTemp);
+    	  // Print average infant temperature here.
+    	  lcd_puts(&lcd1, buffer);
+    	  // Printing the minimum temperature bound.
+    	  lcd_gotoxy(&lcd1, 0, 1);
+    	  lcd_puts(&lcd1, "Min. Bound:");
+    	  lcd_gotoxy(&lcd1, 16, 1);
+    	  sprintf(buffer, "%d.4", minInfTemp);
+    	  lcd_puts(&lcd1, buffer);
+    	  // Printing the maximum temperature bound.
+    	  lcd_gotoxy(&lcd1, 0, 2);
+    	  lcd_puts(&lcd1, "Max. Bound:");
+    	  lcd_gotoxy(&lcd1, 16, 2);
+    	  sprintf(buffer, "%d.4", maxInfTemp);
+    	  lcd_puts(&lcd1, buffer);
+    	  break;
+    	  }
+
+      lastScreen = currentScreen;
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-//  }
+      HAL_Delay(50);
+  }
   /* USER CODE END 3 */
 }
 
@@ -175,8 +290,7 @@ int main(void)
   * @brief System Clock Configuration
   * @retval None
   */
-void SystemClock_Config(void)
-{
+void SystemClock_Config(void){
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
@@ -219,8 +333,7 @@ void SystemClock_Config(void)
   * @param None
   * @retval None
   */
-static void MX_I2C1_Init(void)
-{
+static void MX_I2C1_Init(void){
 
   /* USER CODE BEGIN I2C1_Init 0 */
 
@@ -253,8 +366,7 @@ static void MX_I2C1_Init(void)
   * @param None
   * @retval None
   */
-static void MX_USART2_UART_Init(void)
-{
+static void MX_USART2_UART_Init(void){
 
   /* USER CODE BEGIN USART2_Init 0 */
 
@@ -286,8 +398,7 @@ static void MX_USART2_UART_Init(void)
   * @param None
   * @retval None
   */
-static void MX_GPIO_Init(void)
-{
+static void MX_GPIO_Init(void){
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
@@ -321,16 +432,28 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA8 PA9 PA10 */
-  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10;
+  /*Configure GPIO pins : PB10 PB3 PB4 PB5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PA8 PA9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+}
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */
-}
 
 /* USER CODE BEGIN 4 */
 
@@ -340,8 +463,7 @@ static void MX_GPIO_Init(void)
   * @brief  This function is executed in case of error occurrence.
   * @retval None
   */
-void Error_Handler(void)
-{
+void Error_Handler(void){
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
