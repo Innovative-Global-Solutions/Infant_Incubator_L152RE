@@ -40,6 +40,9 @@ typedef enum{
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+	#define SHT31_ADDR 0x44 << 1 // SHT31 I2C address shifted left by 1 bit
+	#define CMD_MEASURE_TEMP 0x2C06 // Command to measure temperature
+	#define CMD_MEASURE_HUMIDITY 0x2C10 // Command to measure humidity
 
 /* USER CODE END PD */
 
@@ -69,6 +72,12 @@ static void MX_I2C1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+char buffer[100] = {0};
+float temp = 0;
+float humid = 0;
+
+
+
 /* USER CODE END 0 */
 
 /**
@@ -79,6 +88,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+
 
   /* USER CODE END 1 */
 
@@ -278,6 +288,7 @@ int main(void)
 
       lastScreen = currentScreen;
 	  }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
