@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "I2C_LCD.h"
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,7 +49,7 @@ I2C_HandleTypeDef hi2c1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+char buffer[100];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -67,6 +68,17 @@ char buffer[100] = {0};
 float temp = 0;
 float humid = 0;
 
+uint8_t STS35_CalcCRC(uint8_t *data)
+{
+   uint8_t crc = 0xFF;
+   for (int i = 0; i < 2; i++)
+   {
+       crc ^= data[i];
+       for (int j = 0; j < 8; j++)
+           crc = (crc & 0x80) ? ((crc << 1) ^ 0x31) : (crc << 1);
+   }
+   return crc;
+}
 
 void SHT31_ReadTempHumidity(float* temp, float* humidity)
 {
@@ -88,6 +100,26 @@ void SHT31_ReadTempHumidity(float* temp, float* humidity)
     *humidity = ((float)humidity_raw * 100.0f / 65535.0f);
 }
 
+float STS35_ReadTemperature(void)
+{
+   uint8_t cmd[2] = {0x24, 0x00};     // High repeatability, no clock stretch
+   uint8_t rx[3];
+   uint16_t raw;
+   // Send command
+   if (HAL_I2C_Master_Transmit(&hi2c1, (0x4B << 1), cmd, 2, HAL_MAX_DELAY) != HAL_OK)
+       return -300.0f;
+   HAL_Delay(20);
+   // Read response: 2 bytes + CRC
+   if (HAL_I2C_Master_Receive(&hi2c1, (0x4B << 1), rx, 3, HAL_MAX_DELAY) != HAL_OK)
+       return -300.0f;
+   // CRC check
+   if (STS35_CalcCRC(rx) != rx[2])
+       return -301.0f;
+   // Convert raw temperature reading
+   raw = (rx[0] << 8) | rx[1];
+   return -45.0f + (175.0f * (float)raw / 65535.0f);
+}
+
 
 /* USER CODE END 0 */
 
@@ -99,7 +131,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
 
   /* USER CODE END 1 */
 
@@ -130,9 +161,9 @@ int main(void)
   lcd1.hi2c = &hi2c1;   // use global hi2c1 (initialized by MX_I2C1_Init)
   lcd1.address = 0x4E;  // usually 0x4E for 0x27 modules
   lcd_init(&lcd1);
-
-	lcd1.address = 0x4E;   // gives 0x4E, if your module is 0x27
-	lcd_init(&lcd1);
+  lcd_clear(&lcd1);
+  lcd_puts(&lcd1, "STS35 Sensor Init");
+  HAL_Delay(1000);
 	uint8_t lastButtonState1 = 0; // pulled-up input, so default HIGH
 	uint8_t lastButtonState2 = 0; // pulled-up input, so default HIGH
 	uint8_t lastButtonState3 = 0; // pulled-up input, so default HIGH
@@ -150,10 +181,26 @@ int main(void)
       // Detect falling edge: HIGH -> LOW
 
       lcd_clear(&lcd1);
-      lcd_gotooxy(&lcd1, 0, 1);
+      lcd_gotoxy(&lcd1, 0, 1);
 
 
-      sprintf(buffer, "temp: %4.2f", &temp);
+      sprintf(buffer, "temp: %4.2f", temp);
+
+
+
+      float tempC = STS35_ReadTemperature();
+        int t = (int)(tempC * 100);
+        // Clear ONLY first row
+        lcd_gotoxy(&lcd1, 0, 0);
+        lcd_puts(&lcd1, "                ");  // 16 spaces
+        // Write updated value
+        lcd_gotoxy(&lcd1, 0, 0);
+        sprintf(buffer, "t=%d.%02d C", t / 100, abs(t % 100));
+        lcd_puts(&lcd1, buffer);
+        // UART output
+        printf("RAW tempC: %d.%02d C\r\n", t / 100, abs(t % 100));
+        HAL_Delay(1000);
+
 
 //    	  lcd_clear(&lcd1);
 //    	  lcd_gotoxy(&lcd1, 0, 1);
