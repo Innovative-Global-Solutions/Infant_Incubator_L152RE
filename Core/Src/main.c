@@ -57,7 +57,7 @@ I2C_LCD_HandleTypeDef lcd1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+char buffer[100] = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -71,12 +71,37 @@ static void MX_I2C1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+uint8_t STS35_CalcCRC(uint8_t *data)
+{
+   uint8_t crc = 0xFF;
+   for (int i = 0; i < 2; i++)
+   {
+       crc ^= data[i];
+       for (int j = 0; j < 8; j++)
+           crc = (crc & 0x80) ? ((crc << 1) ^ 0x31) : (crc << 1);
+   }
+   return crc;
+}
 
-char buffer[100] = {0};
-float temp = 0;
-float humid = 0;
-
-
+float STS35_ReadTemperature(void)
+{
+   uint8_t cmd[2] = {0x24, 0x00};     // High repeatability, no clock stretch
+   uint8_t rx[3];
+   uint16_t raw;
+   // Send command
+   if (HAL_I2C_Master_Transmit(&hi2c1, (0x4B << 1), cmd, 2, HAL_MAX_DELAY) != HAL_OK)
+       return -300.0f;
+   HAL_Delay(20);
+   // Read response: 2 bytes + CRC
+   if (HAL_I2C_Master_Receive(&hi2c1, (0x4B << 1), rx, 3, HAL_MAX_DELAY) != HAL_OK)
+       return -300.0f;
+   // CRC check
+   if (STS35_CalcCRC(rx) != rx[2])
+       return -301.0f;
+   // Convert raw temperature reading
+   raw = (rx[0] << 8) | rx[1];
+   return -45.0f + (175.0f * (float)raw / 65535.0f);
+}
 
 /* USER CODE END 0 */
 
@@ -88,7 +113,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
 
   /* USER CODE END 1 */
 
@@ -115,7 +139,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /* USER CODE BEGIN 2 */
-  lcd1.hi2c = &hi2c1;   // use global hi2c1 (initialized by MX_I2C1_Init)
+  lcd1.hi2c1 = &hi2c1;   // use global hi2c1 (initialized by MX_I2C1_Init)
   lcd1.address = (0x27 << 1);
   lcd_init(&lcd1);
 
@@ -130,11 +154,10 @@ int main(void)
   MenuState lastScreen = INF_TEMP_SCREEN;
 
   // Random testing variables
-  char buffer[24] = {0};
-  int averageBPM = 120;
+  char buffer[256] = {0};
+  int averageBPM = 10;
   int minBPM = 80;
   int maxBPM = 150;
-  int averageInfTemp = 96;
   int minInfTemp = 93;
   int maxInfTemp = 98;
   int averageHumidity = 97;
@@ -174,6 +197,9 @@ int main(void)
       lastButtonState4 = currentState4;
       lastButtonState5 = currentState5;
 
+      float tempC = STS35_ReadTemperature();
+      int t = (int)(tempC);
+
       // Only update screen on changes
 	  if (currentScreen != lastScreen){
 		  lcd_clear(&lcd1);
@@ -184,7 +210,7 @@ int main(void)
 			  lcd_gotoxy(&lcd1, 0, 0);
 			  lcd_puts(&lcd1, "Home:");
 
-			  // BPM line
+//			   BPM line
 			  lcd_gotoxy(&lcd1, 0, 1);
 			  sprintf(buffer, "BPM: %d", averageBPM);
 			  lcd_puts(&lcd1, buffer);
@@ -196,109 +222,109 @@ int main(void)
 
 			  // Incubator Temp Line
 			  lcd_gotoxy(&lcd1, 0, 2);
-			  sprintf(buffer, "INC: %d.4", averageIncTemp);
+			  sprintf(buffer, "INC: %4.1f", tempC);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Infant Temp Line
 			  lcd_gotoxy(&lcd1, 11, 2);
-			  sprintf(buffer, "INF: %d.4", averageInfTemp);
+			  sprintf(buffer, "INF: %4.1f", tempC);
 			  lcd_puts(&lcd1, buffer);
 			  break;
 
 		  case BPM_SCREEN:
 			  lcd_gotoxy(&lcd1, 0, 0);
-			  lcd_puts(&lcd1, "BPM:");
+			  //lcd_puts(&lcd1, "BPM:");
 
 			  // Print average BPM here.
 			  lcd_gotoxy(&lcd1, 17, 0);
 			  sprintf(buffer, "%d", averageBPM);
-			  lcd_puts(&lcd1, buffer);
+			  //lcd_puts(&lcd1, buffer);
 
 			  // Printing the minimum BPM bound.
 			  lcd_gotoxy(&lcd1, 0, 1);
-			  lcd_puts(&lcd1, "Min. Bound:");
+			  //lcd_puts(&lcd1, "Min. Bound:");
 			  lcd_gotoxy(&lcd1, 18, 1);
 			  sprintf(buffer, "%d", minBPM);
-			  lcd_puts(&lcd1, buffer);
+			  //lcd_puts(&lcd1, buffer);
 
 			  // Printing the maximum BPM bound.
 			  lcd_gotoxy(&lcd1, 0, 2);
-			  lcd_puts(&lcd1, "Max. Bound:");
+			  //lcd_puts(&lcd1, "Max. Bound:");
 			  lcd_gotoxy(&lcd1, 17, 2);
 			  sprintf(buffer, "%d", maxBPM);
-			  lcd_puts(&lcd1, buffer);
+			  //lcd_puts(&lcd1, buffer);
 			  break;
 
 		  case HUMIDITY_SCREEN:
 			  lcd_gotoxy(&lcd1, 0, 0);
-			  lcd_puts(&lcd1, "Humidity Screen");
+			  //lcd_puts(&lcd1, "Humidity Screen");
 
 			  // Print average humidity here.
 			  lcd_gotoxy(&lcd1, 16, 0);
 			  sprintf(buffer, "%d.4", averageHumidity);
-			  lcd_puts(&lcd1, buffer);
+			  //lcd_puts(&lcd1, buffer);
 
 			  // Printing the minimum humidity bound.
 			  lcd_gotoxy(&lcd1, 0, 1);
-			  lcd_puts(&lcd1, "Min. Bound:");
+			  //lcd_puts(&lcd1, "Min. Bound:");
 			  lcd_gotoxy(&lcd1, 16, 1);
 			  sprintf(buffer, "%d.4", minHumidity);
-			  lcd_puts(&lcd1, buffer);
+			  //lcd_puts(&lcd1, buffer);
 
 			  // Printing the maximum humidity bound.
 			  lcd_gotoxy(&lcd1, 0, 2);
-			  lcd_puts(&lcd1, "Max. Bound:");
+			  //lcd_puts(&lcd1, "Max. Bound:");
 			  lcd_gotoxy(&lcd1, 16, 2);
 			  sprintf(buffer, "%d.4", maxHumidity);
-			  lcd_puts(&lcd1, buffer);
+			  //lcd_puts(&lcd1, buffer);
 			  break;
 
 		  case INC_TEMP_SCREEN:
 			  lcd_gotoxy(&lcd1, 0, 0);
-			  lcd_puts(&lcd1, "Incubator Temp:");
+			  //lcd_puts(&lcd1, "Incubator Temp:");
 
 			  // Print average infant temperature here.
 			  lcd_gotoxy(&lcd1, 16, 0);
-			  sprintf(buffer, "%d.4", averageInfTemp);
-			  lcd_puts(&lcd1, buffer);
+			  sprintf(buffer, "%4.1f", tempC);
+			  //lcd_puts(&lcd1, buffer);
 
 			  // Printing the minimum temperature bound.
 			  lcd_gotoxy(&lcd1, 0, 1);
-			  lcd_puts(&lcd1, "Min. Bound:");
+			  //lcd_puts(&lcd1, "Min. Bound:");
 			  lcd_gotoxy(&lcd1, 16, 1);
 			  sprintf(buffer, "%d.4", minInfTemp);
-			  lcd_puts(&lcd1, buffer);
+			  //lcd_puts(&lcd1, buffer);
 
 			  // Printing the maximum temperature bound.
 			  lcd_gotoxy(&lcd1, 0, 2);
-			  lcd_puts(&lcd1, "Max. Bound:");
+			  //lcd_puts(&lcd1, "Max. Bound:");
 			  lcd_gotoxy(&lcd1, 16, 2);
 			  sprintf(buffer, "%d.4", maxInfTemp);
-			  lcd_puts(&lcd1, buffer);
+			  //lcd_puts(&lcd1, buffer);
 			  break;
 
 		  case INF_TEMP_SCREEN:
 			  lcd_gotoxy(&lcd1, 0, 0);
-			  lcd_puts(&lcd1, "Infant Temp:");
+			  //lcd_puts(&lcd1, "Infant Temp:");
 
 			  // Print average infant temperature here.
 			  lcd_gotoxy(&lcd1, 16, 0);
-			  sprintf(buffer, "%d.4", averageInfTemp);
-			  lcd_puts(&lcd1, buffer);
+			  sprintf(buffer, "%4.1f", tempC);
+			  //lcd_puts(&lcd1, buffer);
 
 			  // Printing the minimum temperature bound.
 			  lcd_gotoxy(&lcd1, 0, 1);
-			  lcd_puts(&lcd1, "Min. Bound:");
+			  //lcd_puts(&lcd1, "Min. Bound:");
 			  lcd_gotoxy(&lcd1, 16, 1);
 			  sprintf(buffer, "%d.4", minInfTemp);
-			  lcd_puts(&lcd1, buffer);
+			  //lcd_puts(&lcd1, buffer);
 
 			  // Printing the maximum temperature bound.
 			  lcd_gotoxy(&lcd1, 0, 2);
-			  lcd_puts(&lcd1, "Max. Bound:");
+			  //lcd_puts(&lcd1, "Max. Bound:");
 			  lcd_gotoxy(&lcd1, 16, 2);
 			  sprintf(buffer, "%d.4", maxInfTemp);
-			  lcd_puts(&lcd1, buffer);
+			  //lcd_puts(&lcd1, buffer);
 			  break;
 			  }
 

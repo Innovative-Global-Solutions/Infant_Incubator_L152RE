@@ -20,7 +20,7 @@
  * @brief Structure to hold LCD instance information
  */
 typedef struct {
-    I2C_HandleTypeDef *hi2c;     // I2C handler for communication
+    I2C_HandleTypeDef *hi2c1;     // I2C handler for communication
     uint8_t address;            // I2C address of the LCD
 } I2C_LCD_HandleTypeDef;
 
