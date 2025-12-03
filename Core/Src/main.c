@@ -57,6 +57,10 @@ I2C_LCD_HandleTypeDef lcd1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+const uint32_t SCREEN_REFRESH_MS = 1500;   // update every 500 ms
+char buffer[256] = {0};
+uint32_t lastUpdateTick = 0;
+uint32_t now = 0;
 
 /* USER CODE END PV */
 
@@ -69,14 +73,52 @@ static void MX_I2C1_Init(void);
 
 /* USER CODE END PFP */
 
-/* Private user code ---------------------------------------------------------*/
+/* Private user code ----------------------------------------- ----------------*/
 /* USER CODE BEGIN 0 */
 
-char buffer[100] = {0};
-float temp = 0;
-float humid = 0;
+// calculates CRC value for STS-35 Sensor
+uint8_t STS35_CalcCRC(uint8_t *data)
+{
+    uint8_t crc = 0xFF;   // Start with initial CRC value
 
+    // Process both temperature bytes
+    for (int i = 0; i < 2; i++)
+    {
+        crc ^= data[i];   // XOR incoming byte with current CRC
 
+        // Process each of the 8 bits in this byte
+        for (int j = 0; j < 8; j++)
+        {
+            // If MSB is 1, shift and XOR with polynomial 0x31
+            if (crc & 0x80)
+                crc = (crc << 1) ^ 0x31;
+            else
+                crc = (crc << 1);   // Otherwise just shift left
+        }
+    }
+
+    return crc;   // Final CRC result
+}
+//takes reading from STS sensor
+float STS35_ReadTemperature(void)
+{
+   uint8_t cmd[2] = {0x24, 0x00};     // High repeatability, no clock stretch
+   uint8_t rx[3];
+   uint16_t raw;
+   // Send command
+   if (HAL_I2C_Master_Transmit(&hi2c1, (0x4B << 1), cmd, 2, HAL_MAX_DELAY) != HAL_OK)
+       return -300.0f;
+   HAL_Delay(20);
+   // Read response: 2 bytes + CRC
+   if (HAL_I2C_Master_Receive(&hi2c1, (0x4B << 1), rx, 3, HAL_MAX_DELAY) != HAL_OK)
+       return -300.0f;
+   // CRC check
+   if (STS35_CalcCRC(rx) != rx[2])
+       return -301.0f;
+   // Convert raw temperature reading
+   raw = (rx[0] << 8) | rx[1];
+   return -45.0f + (175.0f * (float)raw / 65535.0f);
+}
 
 /* USER CODE END 0 */
 
@@ -88,7 +130,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
 
   /* USER CODE END 1 */
 
@@ -115,7 +156,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /* USER CODE BEGIN 2 */
-  lcd1.hi2c = &hi2c1;   // use global hi2c1 (initialized by MX_I2C1_Init)
+  lcd1.hi2c1 = &hi2c1;   // use global hi2c1 (initialized by MX_I2C1_Init)
   lcd1.address = (0x27 << 1);
   lcd_init(&lcd1);
 
@@ -130,13 +171,12 @@ int main(void)
   MenuState lastScreen = INF_TEMP_SCREEN;
 
   // Random testing variables
-  char buffer[24] = {0};
-  int averageBPM = 120;
+  float tempC = 0;
+  int averageBPM = 10;
   int minBPM = 80;
   int maxBPM = 150;
-  int averageInfTemp = 96;
-  int minInfTemp = 93;
-  int maxInfTemp = 98;
+  int minInfTemp = 70;
+  int maxInfTemp = 90;
   int averageHumidity = 97;
   int averageIncTemp = 70;
   int maxHumidity = 98;
@@ -148,6 +188,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+	  // update time stamp
+      now = HAL_GetTick();
+
       // Reading the button states
       uint8_t currentState1 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10);
       uint8_t currentState2 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_9);
@@ -174,9 +218,15 @@ int main(void)
       lastButtonState4 = currentState4;
       lastButtonState5 = currentState5;
 
+      // get sensor reading
+      tempC = STS35_ReadTemperature();
+
       // Only update screen on changes
-	  if (currentScreen != lastScreen){
-		  lcd_clear(&lcd1);
+
+      if (currentScreen != lastScreen || (now - lastUpdateTick) >= SCREEN_REFRESH_MS) {
+          lastUpdateTick = now;   // record time of this update
+
+          lcd_clear(&lcd1);
 
 		  // Home screen as default
 		  switch(currentScreen){
@@ -184,7 +234,7 @@ int main(void)
 			  lcd_gotoxy(&lcd1, 0, 0);
 			  lcd_puts(&lcd1, "Home:");
 
-			  // BPM line
+//			   BPM line
 			  lcd_gotoxy(&lcd1, 0, 1);
 			  sprintf(buffer, "BPM: %d", averageBPM);
 			  lcd_puts(&lcd1, buffer);
@@ -196,12 +246,12 @@ int main(void)
 
 			  // Incubator Temp Line
 			  lcd_gotoxy(&lcd1, 0, 2);
-			  sprintf(buffer, "INC: %d.4", averageIncTemp);
+			  sprintf(buffer, "INC: %4.1f", tempC);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Infant Temp Line
 			  lcd_gotoxy(&lcd1, 11, 2);
-			  sprintf(buffer, "INF: %d.4", averageInfTemp);
+			  sprintf(buffer, "INF: %4.1f", tempC);
 			  lcd_puts(&lcd1, buffer);
 			  break;
 
@@ -259,7 +309,7 @@ int main(void)
 
 			  // Print average infant temperature here.
 			  lcd_gotoxy(&lcd1, 16, 0);
-			  sprintf(buffer, "%d.4", averageInfTemp);
+			  sprintf(buffer, "%4.1f", tempC);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Printing the minimum temperature bound.
@@ -283,7 +333,7 @@ int main(void)
 
 			  // Print average infant temperature here.
 			  lcd_gotoxy(&lcd1, 16, 0);
-			  sprintf(buffer, "%d.4", averageInfTemp);
+			  sprintf(buffer, "%4.1f", tempC);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Printing the minimum temperature bound.
