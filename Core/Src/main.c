@@ -57,9 +57,11 @@ I2C_LCD_HandleTypeDef lcd1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-char buffer[100] = {0};
-uint32_t lastUpdateTick = 0;
 const uint32_t SCREEN_REFRESH_MS = 1500;   // update every 500 ms
+char buffer[256] = {0};
+uint32_t lastUpdateTick = 0;
+uint32_t now = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -71,20 +73,33 @@ static void MX_I2C1_Init(void);
 
 /* USER CODE END PFP */
 
-/* Private user code ---------------------------------------------------------*/
+/* Private user code ----------------------------------------- ----------------*/
 /* USER CODE BEGIN 0 */
+
+// calculates CRC value for STS-35 Sensor
 uint8_t STS35_CalcCRC(uint8_t *data)
 {
-   uint8_t crc = 0xFF;
-   for (int i = 0; i < 2; i++)
-   {
-       crc ^= data[i];
-       for (int j = 0; j < 8; j++)
-           crc = (crc & 0x80) ? ((crc << 1) ^ 0x31) : (crc << 1);
-   }
-   return crc;
-}
+    uint8_t crc = 0xFF;   // Start with initial CRC value
 
+    // Process both temperature bytes
+    for (int i = 0; i < 2; i++)
+    {
+        crc ^= data[i];   // XOR incoming byte with current CRC
+
+        // Process each of the 8 bits in this byte
+        for (int j = 0; j < 8; j++)
+        {
+            // If MSB is 1, shift and XOR with polynomial 0x31
+            if (crc & 0x80)
+                crc = (crc << 1) ^ 0x31;
+            else
+                crc = (crc << 1);   // Otherwise just shift left
+        }
+    }
+
+    return crc;   // Final CRC result
+}
+//takes reading from STS sensor
 float STS35_ReadTemperature(void)
 {
    uint8_t cmd[2] = {0x24, 0x00};     // High repeatability, no clock stretch
@@ -156,7 +171,6 @@ int main(void)
   MenuState lastScreen = INF_TEMP_SCREEN;
 
   // Random testing variables
-  char buffer[256] = {0};
   int averageBPM = 10;
   int minBPM = 80;
   int maxBPM = 150;
@@ -173,6 +187,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+	  // update time stamp
+      now = HAL_GetTick();
+
       // Reading the button states
       uint8_t currentState1 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10);
       uint8_t currentState2 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_9);
@@ -199,11 +217,10 @@ int main(void)
       lastButtonState4 = currentState4;
       lastButtonState5 = currentState5;
 
+      // get sensor reading
       float tempC = STS35_ReadTemperature();
-      int t = (int)(tempC);
 
       // Only update screen on changes
-      uint32_t now = HAL_GetTick();
 
       if (currentScreen != lastScreen || (now - lastUpdateTick) >= SCREEN_REFRESH_MS) {
           lastUpdateTick = now;   // record time of this update
