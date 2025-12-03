@@ -171,6 +171,7 @@ int main(void)
   MenuState lastScreen = INF_TEMP_SCREEN;
 
   // Random testing variables
+  float tempC = 0;
   int averageBPM = 10;
   int minBPM = 80;
   int maxBPM = 150;
@@ -218,7 +219,7 @@ int main(void)
       lastButtonState5 = currentState5;
 
       // get sensor reading
-      float tempC = STS35_ReadTemperature();
+      tempC = STS35_ReadTemperature();
 
       // Only update screen on changes
 
