@@ -1,7 +1,0 @@
-../Core/Src/I2C_LCD.c:15:6:lcd_send_cmd	1
-../Core/Src/I2C_LCD.c:38:6:lcd_send_data	1
-../Core/Src/I2C_LCD.c:59:6:lcd_clear	2
-../Core/Src/I2C_LCD.c:79:6:lcd_gotoxy	5
-../Core/Src/I2C_LCD.c:100:6:lcd_init	1
-../Core/Src/I2C_LCD.c:130:6:lcd_puts	2
-../Core/Src/I2C_LCD.c:141:6:lcd_putchar	1
