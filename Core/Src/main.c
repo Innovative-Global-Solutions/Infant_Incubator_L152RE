@@ -195,7 +195,7 @@ int main(void)
 
   // Random testing variables
   float infTemp = 0;
-  float Humidity = 0;
+  float humidity = 0;
   float incTemp = 0;
   int averageBPM = 10;
   int minBPM = 80;
@@ -243,7 +243,7 @@ int main(void)
 
       // get sensor readings
       infTemp = STS35_ReadTemperature();
-      SHT31_ReadTempHumidity(&incTemp, &Humidity);
+      SHT31_ReadTempHumidity(&incTemp, &humidity);
 
       // Only update screen on changes
 
@@ -265,7 +265,7 @@ int main(void)
 
 			  // Humidity Line
 			  lcd_gotoxy(&lcd1, 11, 1);
-			  sprintf(buffer, "HUM: %4.1f", Humidity);
+			  sprintf(buffer, "HUM: %4.1f", humidity);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Incubator Temp Line
@@ -309,7 +309,7 @@ int main(void)
 
 			  // Print average humidity here.
 			  lcd_gotoxy(&lcd1, 16, 0);
-			  sprintf(buffer, "%4.1f", Humidity);
+			  sprintf(buffer, "%4.1f", humidity);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Printing the minimum humidity bound.
