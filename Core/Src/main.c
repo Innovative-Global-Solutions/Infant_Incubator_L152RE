@@ -99,7 +99,7 @@ uint8_t STS35_CalcCRC(uint8_t *data)
 
     return crc;   // Final CRC result
 }
-//takes reading from STS sensor
+//takes reading from STS35 sensor
 float STS35_ReadTemperature(void)
 {
    uint8_t cmd[2] = {0x24, 0x00};     // High repeatability, no clock stretch
@@ -118,6 +118,29 @@ float STS35_ReadTemperature(void)
    // Convert raw temperature reading
    raw = (rx[0] << 8) | rx[1];
    return -45.0f + (175.0f * (float)raw / 65535.0f);
+}
+
+//Takes reading from SHT31 Sensor
+void SHT31_ReadTempHumidity(float* temp, float* humidity)
+{
+    uint8_t cmd[2] = {0x2C, 0x06};
+    uint8_t data[6];
+    uint16_t temp_raw, humidity_raw;
+
+    // Send measurement command
+    HAL_I2C_Master_Transmit(&hi2c1, SHT31_ADDR, cmd, 2, HAL_MAX_DELAY);
+    HAL_Delay(20);
+
+    // Read 6 bytes (temp + humidity)
+    HAL_I2C_Master_Receive(&hi2c1, SHT31_ADDR, data, 6, HAL_MAX_DELAY);
+
+    // Parse raw values
+    temp_raw = (data[0] << 8) | data[1];
+    humidity_raw = (data[3] << 8) | data[4];
+
+    // Convert to human-readable units
+    *temp = -45.0f + 175.0f * ((float)temp_raw / 65535.0f);
+    *humidity = 100.0f * ((float)humidity_raw / 65535.0f);
 }
 
 /* USER CODE END 0 */
@@ -171,14 +194,14 @@ int main(void)
   MenuState lastScreen = INF_TEMP_SCREEN;
 
   // Random testing variables
-  float tempC = 0;
+  float InfTemp = 0;
+  float Humidity = 0;
+  float IncTemp = 0;
   int averageBPM = 10;
   int minBPM = 80;
   int maxBPM = 150;
   int minInfTemp = 70;
   int maxInfTemp = 90;
-  int averageHumidity = 97;
-  int averageIncTemp = 70;
   int maxHumidity = 98;
   int minHumidity = 54;
 
@@ -218,8 +241,9 @@ int main(void)
       lastButtonState4 = currentState4;
       lastButtonState5 = currentState5;
 
-      // get sensor reading
-      tempC = STS35_ReadTemperature();
+      // get sensor readings
+      InfTemp = STS35_ReadTemperature();
+      SHT31_ReadTempHumidity(&IncTemp, &Humidity);
 
       // Only update screen on changes
 
@@ -241,17 +265,17 @@ int main(void)
 
 			  // Humidity Line
 			  lcd_gotoxy(&lcd1, 11, 1);
-			  sprintf(buffer, "HUM: %d.4", averageHumidity);
+			  sprintf(buffer, "HUM: %4.1f", Humidity);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Incubator Temp Line
 			  lcd_gotoxy(&lcd1, 0, 2);
-			  sprintf(buffer, "INC: %4.1f", tempC);
+			  sprintf(buffer, "INC: %4.1f", IncTemp);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Infant Temp Line
 			  lcd_gotoxy(&lcd1, 11, 2);
-			  sprintf(buffer, "INF: %4.1f", tempC);
+			  sprintf(buffer, "INF: %4.1f", InfTemp);
 			  lcd_puts(&lcd1, buffer);
 			  break;
 
@@ -285,7 +309,7 @@ int main(void)
 
 			  // Print average humidity here.
 			  lcd_gotoxy(&lcd1, 16, 0);
-			  sprintf(buffer, "%d.4", averageHumidity);
+			  sprintf(buffer, "%4.1f", Humidity);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Printing the minimum humidity bound.
@@ -309,7 +333,7 @@ int main(void)
 
 			  // Print average infant temperature here.
 			  lcd_gotoxy(&lcd1, 16, 0);
-			  sprintf(buffer, "%4.1f", tempC);
+			  sprintf(buffer, "%4.1f", IncTemp);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Printing the minimum temperature bound.
@@ -333,7 +357,7 @@ int main(void)
 
 			  // Print average infant temperature here.
 			  lcd_gotoxy(&lcd1, 16, 0);
-			  sprintf(buffer, "%4.1f", tempC);
+			  sprintf(buffer, "%4.1f", InfTemp);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Printing the minimum temperature bound.
