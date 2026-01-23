@@ -194,9 +194,9 @@ int main(void)
   MenuState lastScreen = INF_TEMP_SCREEN;
 
   // Random testing variables
-  float InfTemp = 0;
+  float infTemp = 0;
   float Humidity = 0;
-  float IncTemp = 0;
+  float incTemp = 0;
   int averageBPM = 10;
   int minBPM = 80;
   int maxBPM = 150;
@@ -242,8 +242,8 @@ int main(void)
       lastButtonState5 = currentState5;
 
       // get sensor readings
-      InfTemp = STS35_ReadTemperature();
-      SHT31_ReadTempHumidity(&IncTemp, &Humidity);
+      infTemp = STS35_ReadTemperature();
+      SHT31_ReadTempHumidity(&incTemp, &Humidity);
 
       // Only update screen on changes
 
@@ -270,12 +270,12 @@ int main(void)
 
 			  // Incubator Temp Line
 			  lcd_gotoxy(&lcd1, 0, 2);
-			  sprintf(buffer, "INC: %4.1f", IncTemp);
+			  sprintf(buffer, "INC: %4.1f", incTemp);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Infant Temp Line
 			  lcd_gotoxy(&lcd1, 11, 2);
-			  sprintf(buffer, "INF: %4.1f", InfTemp);
+			  sprintf(buffer, "INF: %4.1f", infTemp);
 			  lcd_puts(&lcd1, buffer);
 			  break;
 
@@ -333,7 +333,7 @@ int main(void)
 
 			  // Print average infant temperature here.
 			  lcd_gotoxy(&lcd1, 16, 0);
-			  sprintf(buffer, "%4.1f", IncTemp);
+			  sprintf(buffer, "%4.1f", incTemp);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Printing the minimum temperature bound.
@@ -357,7 +357,7 @@ int main(void)
 
 			  // Print average infant temperature here.
 			  lcd_gotoxy(&lcd1, 16, 0);
-			  sprintf(buffer, "%4.1f", InfTemp);
+			  sprintf(buffer, "%4.1f", infTemp);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Printing the minimum temperature bound.
