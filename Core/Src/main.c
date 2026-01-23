@@ -73,7 +73,7 @@ static void MX_I2C1_Init(void);
 
 /* USER CODE END PFP */
 
-/* Private user code ----------------------------------------- ----------------*/
+/* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
 // calculates CRC value for STS-35 Sensor
@@ -197,13 +197,16 @@ int main(void)
   float infTemp = 0;
   float humidity = 0;
   float incTemp = 0;
-  int averageBPM = 10;
-  int minBPM = 80;
-  int maxBPM = 150;
-  int minInfTemp = 70;
-  int maxInfTemp = 90;
+  int alarm = 0;
+  int maxIncTemp = 50;
+  int minIncTemp = 10;
+  int bpm = 100;
+  int minBpm = 80;
+  int maxBpm = 150;
+  int minInfTemp = 20;
+  int maxInfTemp = 30;
   int maxHumidity = 98;
-  int minHumidity = 54;
+  int minHumidity = 2;
 
   /* USER CODE END 2 */
 
@@ -245,6 +248,25 @@ int main(void)
       infTemp = STS35_ReadTemperature();
       SHT31_ReadTempHumidity(&incTemp, &humidity);
 
+
+      //Alarms
+
+      //Infant temperature alarm
+      if (infTemp > maxInfTemp || infTemp < minInfTemp) alarm = 1;
+
+      //Incubator temperature alarm
+      else if (incTemp > maxIncTemp || incTemp < minIncTemp) alarm = 1;
+
+      //Incubator humidity alarm
+      else if (humidity > maxHumidity || infTemp < minHumidity) alarm = 1;
+
+      //Incubator humidity alarm
+      else if (bpm > maxBpm || bpm < minBpm) alarm = 1;
+      else alarm = 0;
+
+      //Write to alarm pin
+      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, alarm ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
       // Only update screen on changes
 
       if (currentScreen != lastScreen || (now - lastUpdateTick) >= SCREEN_REFRESH_MS) {
@@ -260,7 +282,7 @@ int main(void)
 
 //			   BPM line
 			  lcd_gotoxy(&lcd1, 0, 1);
-			  sprintf(buffer, "BPM: %d", averageBPM);
+			  sprintf(buffer, "BPM: %d", bpm);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Humidity Line
@@ -285,21 +307,21 @@ int main(void)
 
 			  // Print average BPM here.
 			  lcd_gotoxy(&lcd1, 17, 0);
-			  sprintf(buffer, "%d", averageBPM);
+			  sprintf(buffer, "%d", bpm);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Printing the minimum BPM bound.
 			  lcd_gotoxy(&lcd1, 0, 1);
 			  lcd_puts(&lcd1, "Min. Bound:");
 			  lcd_gotoxy(&lcd1, 18, 1);
-			  sprintf(buffer, "%d", minBPM);
+			  sprintf(buffer, "%d", minBpm);
 			  lcd_puts(&lcd1, buffer);
 
 			  // Printing the maximum BPM bound.
 			  lcd_gotoxy(&lcd1, 0, 2);
 			  lcd_puts(&lcd1, "Max. Bound:");
 			  lcd_gotoxy(&lcd1, 17, 2);
-			  sprintf(buffer, "%d", maxBPM);
+			  sprintf(buffer, "%d", maxBpm);
 			  lcd_puts(&lcd1, buffer);
 			  break;
 
@@ -390,7 +412,8 @@ int main(void)
   * @brief System Clock Configuration
   * @retval None
   */
-void SystemClock_Config(void){
+void SystemClock_Config(void)
+{
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
@@ -433,7 +456,8 @@ void SystemClock_Config(void){
   * @param None
   * @retval None
   */
-static void MX_I2C1_Init(void){
+static void MX_I2C1_Init(void)
+{
 
   /* USER CODE BEGIN I2C1_Init 0 */
 
@@ -466,7 +490,8 @@ static void MX_I2C1_Init(void){
   * @param None
   * @retval None
   */
-static void MX_USART2_UART_Init(void){
+static void MX_USART2_UART_Init(void)
+{
 
   /* USER CODE BEGIN USART2_Init 0 */
 
@@ -498,7 +523,8 @@ static void MX_USART2_UART_Init(void){
   * @param None
   * @retval None
   */
-static void MX_GPIO_Init(void){
+static void MX_GPIO_Init(void)
+{
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
@@ -512,6 +538,9 @@ static void MX_GPIO_Init(void){
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, LD2_Pin|GPIO_PIN_7, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -541,7 +570,7 @@ static void MX_GPIO_Init(void){
   /*Configure GPIO pins : PA8 PA9 */
   GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PA10 */
@@ -549,11 +578,18 @@ static void MX_GPIO_Init(void){
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-}
+
+  /*Configure GPIO pin : PB9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */
+}
 
 /* USER CODE BEGIN 4 */
 
@@ -563,7 +599,8 @@ static void MX_GPIO_Init(void){
   * @brief  This function is executed in case of error occurrence.
   * @retval None
   */
-void Error_Handler(void){
+void Error_Handler(void)
+{
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
