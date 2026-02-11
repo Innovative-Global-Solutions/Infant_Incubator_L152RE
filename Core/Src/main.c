@@ -53,7 +53,7 @@ typedef enum{
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
-I2C_LCD_HandleTypeDef lcd1;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -61,6 +61,9 @@ const uint32_t SCREEN_REFRESH_MS = 1500;   // update every 500 ms
 char buffer[256] = {0};
 uint32_t lastUpdateTick = 0;
 uint32_t now = 0;
+
+I2C_LCD_HandleTypeDef lcd1;
+
 
 /* USER CODE END PV */
 
