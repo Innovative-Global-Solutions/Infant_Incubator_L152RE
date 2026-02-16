@@ -52,6 +52,8 @@ typedef enum{
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc;
+TIM_HandleTypeDef htim3;
 I2C_HandleTypeDef hi2c1;
 I2C_LCD_HandleTypeDef lcd1;
 UART_HandleTypeDef huart2;
@@ -69,6 +71,8 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_ADC_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -143,6 +147,19 @@ void SHT31_ReadTempHumidity(float* temp, float* humidity)
     *humidity = 100.0f * ((float)humidity_raw / 65535.0f);
 }
 
+uint32_t Read_ADC(void)
+{
+    uint32_t adc_val;
+
+    HAL_ADC_Start(&hadc);                               // Start ADC
+    HAL_ADC_PollForConversion(&hadc, HAL_MAX_DELAY);    // Wait for conversion
+    adc_val = HAL_ADC_GetValue(&hadc);                  // Read value
+    HAL_ADC_Stop(&hadc);                                // Stop ADC
+
+    return adc_val;
+}
+
+
 /* USER CODE END 0 */
 
 /**
@@ -176,7 +193,10 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_I2C1_Init();
+  MX_ADC_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
 
   /* USER CODE BEGIN 2 */
   lcd1.hi2c1 = &hi2c1;   // use global hi2c1 (initialized by MX_I2C1_Init)
@@ -208,12 +228,33 @@ int main(void)
   int maxHumidity = 98;
   int minHumidity = 2;
 
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+
+	  int16_t pos = (int16_t)__HAL_TIM_GET_COUNTER(&htim3);  // signed makes wrap-around easier to think about
+
+	  sprintf(buffer, "ENC = %d\r\n", pos);
+	  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+	  HAL_Delay(50);
+
+
+	  HAL_ADC_Start(&hadc);
+	  HAL_ADC_PollForConversion(&hadc, HAL_MAX_DELAY);
+	  uint32_t adc = HAL_ADC_GetValue(&hadc);
+	  HAL_ADC_Stop(&hadc);
+
+
+	  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+
+	  HAL_Delay(500);
+
 
 	  // update time stamp
       now = HAL_GetTick();
@@ -452,6 +493,61 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief ADC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC_Init(void)
+{
+
+  /* USER CODE BEGIN ADC_Init 0 */
+
+  /* USER CODE END ADC_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC_Init 1 */
+
+  /* USER CODE END ADC_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc.Instance = ADC1;
+  hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc.Init.EOCSelection = ADC_EOC_SEQ_CONV;
+  hadc.Init.LowPowerAutoWait = ADC_AUTOWAIT_DISABLE;
+  hadc.Init.LowPowerAutoPowerOff = ADC_AUTOPOWEROFF_DISABLE;
+  hadc.Init.ChannelsBank = ADC_CHANNELS_BANK_A;
+  hadc.Init.ContinuousConvMode = DISABLE;
+  hadc.Init.NbrOfConversion = 1;
+  hadc.Init.DiscontinuousConvMode = DISABLE;
+  hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc.Init.DMAContinuousRequests = DISABLE;
+  if (HAL_ADC_Init(&hadc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_0;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_4CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC_Init 2 */
+
+  /* USER CODE END ADC_Init 2 */
+
+}
+
+/**
   * @brief I2C1 Initialization Function
   * @param None
   * @retval None
@@ -482,6 +578,55 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_Encoder_InitTypeDef sConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 0;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 65535;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
+  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter = 0;
+  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter = 0;
+  if (HAL_TIM_Encoder_Init(&htim3, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
 
 }
 
@@ -587,6 +732,28 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
+  // --- Rotary encoder pins: PA6 = TIM3_CH1, PC7 = TIM3_CH2 ---
+  // IMPORTANT: Set GPIO_AFx_TIM3 to the correct AF number for your MCU.
+  // CubeMX normally shows it; otherwise check the datasheet "Alternate function mapping".
+
+
+  // Enable GPIOC clock already enabled above; GPIOA too (you already do this)
+
+  // PA6 -> TIM3_CH1
+  GPIO_InitStruct.Pin = GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;                 // because encoder common is GND
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;          // <--- THIS AF NUMBER MAY DIFFER
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  // PC7 -> TIM3_CH2
+  GPIO_InitStruct.Pin = GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;                 // pull-up for switch-to-ground encoder
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;          // <--- THIS AF NUMBER MAY DIFFER
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /* USER CODE END MX_GPIO_Init_2 */
 }
