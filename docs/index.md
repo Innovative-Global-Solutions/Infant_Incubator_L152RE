@@ -15,8 +15,8 @@ These docs outline the basic functionality and implementation of the controls sy
 <h2>Directory</h2>
 <ul>
     <li><a href="./index.md">Index</a></li>
-    <li><a href="./tempAndHumidSensor.md">Temperature and Humidity Sensor</a></li>
-    <li><a href="infantTempSensor.md">Infant Temperature Sensor</a></li>
+    <li><a href="./tempAndHumid.md">Temperature and Humidity</a></li>
+    <li><a href="infantTemp.md">Infant Temperature</a></li>
     <li><a href="alarmSystem.md">Alarm System</a></li>
     <li><a href="userInterface.md">User Interface</a></li>
 </ul>
