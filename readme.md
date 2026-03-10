@@ -16,4 +16,5 @@ Attempt to build the code using the hammer icon
 
 <h2>Adding features</h2>
 
-To add features create a branch -> make changes -> push branch to remote -> open pull request and get a review
+To add features:
+  create a branch -> make changes -> push branch to remote -> open pull request and get a review
