@@ -24,6 +24,7 @@
 #include "I2C_LCD.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -35,11 +36,13 @@ typedef enum{
   INC_TEMP_SCREEN,
   INF_TEMP_SCREEN,
 } MenuState;
-typedef enum{
-   EDIT_NONE,
-   EDIT_MIN,
-   EDIT_MAX
-} EditMode;
+
+typedef struct {
+    int *min;
+    int *max;
+    int absMin;
+    int absMax;
+} paramBounds;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -137,6 +140,44 @@ void SHT31_ReadTempHumidity(float* temp, float* humidity)
    *temp = -45.0f + 175.0f * ((float)temp_raw / 65535.0f);
    *humidity = 100.0f * ((float)humidity_raw / 65535.0f);
 }
+
+void drawParamScreen(I2C_LCD_HandleTypeDef *lcd, const char *title, float value, int minVal, int maxVal, uint8_t editMax, char *buffer)
+{
+    // Display the name of the current screen
+    lcd_gotoxy(lcd, 0, 0);
+    lcd_puts(lcd, title);
+
+    // Display the live sensor value on the right side
+    lcd_gotoxy(lcd, 15, 0);
+    sprintf(buffer, "%4.1f", value);
+    lcd_puts(lcd, buffer);
+
+    // Show cursor if editing MIN (editMax == 0)
+    lcd_gotoxy(lcd, 0, 1);
+    lcd_puts(lcd, (!editMax) ? ">" : " ");
+
+    // Label for minimum bound
+    lcd_gotoxy(lcd, 1, 1);
+    lcd_puts(lcd, "Min. Bound:");
+
+    // Display minimum bound value
+    lcd_gotoxy(lcd, 15, 1);
+    sprintf(buffer, "%d", minVal);
+    lcd_puts(lcd, buffer);
+
+    // Show cursor if editing MAX (editMax == 1)
+    lcd_gotoxy(lcd, 0, 2);
+    lcd_puts(lcd, (editMax) ? ">" : " ");
+
+    // Label for maximum bound
+    lcd_gotoxy(lcd, 1, 2);
+    lcd_puts(lcd, "Max. Bound:");
+
+    // Display maximum bound value
+    lcd_gotoxy(lcd, 15, 2);
+    sprintf(buffer, "%d", maxVal);
+    lcd_puts(lcd, buffer);
+}
 /* USER CODE END 0 */
 
 /**
@@ -175,29 +216,36 @@ int main(void)
  lcd1.address = (0x27 << 1);
  lcd_init(&lcd1);
  // Pulled-down input so default low.
- uint8_t lastButtonState1 = 0;
- uint8_t lastButtonState2 = 0;
- uint8_t lastButtonState3 = 0;
- uint8_t lastButtonState4 = 0;
- uint8_t lastButtonState5 = 0;
+ uint8_t bpmLastState = 0;
+ uint8_t humidityLastState = 0;
+ uint8_t incubatorTempLastState = 0;
+ uint8_t infantTempLastState = 0;
+ uint8_t homeScreenLastState = 0;
  MenuState currentScreen = HOME_SCREEN;
  MenuState lastScreen = INF_TEMP_SCREEN;
- EditMode editMode = EDIT_NONE;
+ bool editMax = false;   // false = edit min, true = edit max
  int16_t lastEnc = (int16_t)__HAL_TIM_GET_COUNTER(&htim3);
  // Random testing variables
  float infTemp = 0;
  float humidity = 0;
  float incTemp = 0;
+ float bpm = 100;
  int alarm = 0;
  int maxIncTemp = 50;
  int minIncTemp = 10;
- int bpm = 100;
  int minBpm = 80;
  int maxBpm = 150;
  int minInfTemp = 20;
  int maxInfTemp = 30;
  int maxHumidity = 98;
  int minHumidity = 2;
+
+ paramBounds params[] = {
+     [BPM_SCREEN]       = {&minBpm, &maxBpm, 0, 300},
+     [HUMIDITY_SCREEN]  = {&minHumidity, &maxHumidity, 0, 100},
+     [INC_TEMP_SCREEN]  = {&minIncTemp, &maxIncTemp, -100, 100},
+     [INF_TEMP_SCREEN]  = {&minInfTemp, &maxInfTemp, -100, 100}
+ };
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -208,8 +256,9 @@ int main(void)
 	  int16_t encNow = (int16_t)__HAL_TIM_GET_COUNTER(&htim3);
 	  int16_t encDelta = encNow - lastEnc;
 
-	  // Turn encoder number into usable value
-	  int step = 0;
+	  // Encoder input handling.
+	  // When the encoder is rotated enough to register, the system adjusts parameters for selected screen.
+	  float step = 0;
 	  if (encDelta >= 2)
 	  {
 	      step = 1;
@@ -223,127 +272,95 @@ int main(void)
 	  // update time stamp
      now = HAL_GetTick();
      // Reading the button states
-     uint8_t currentState1 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10);
-     uint8_t currentState2 = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_9);
-     uint8_t currentState3 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5);
-     uint8_t currentState4 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4);
-     uint8_t currentState5 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10);
-     //changes edit mode based on button pushes
-     if (currentState1 == GPIO_PIN_RESET && lastButtonState1 == GPIO_PIN_SET)
-     {
-         if (currentScreen == BPM_SCREEN)
-             editMode = (editMode == EDIT_MIN) ? EDIT_MAX : EDIT_MIN;
-         else
-         {
-             currentScreen = BPM_SCREEN;
-             editMode = EDIT_MIN;
-         }
-     }
-     else if (currentState2 == GPIO_PIN_RESET && lastButtonState2 == GPIO_PIN_SET)
-     {
-         if (currentScreen == HUMIDITY_SCREEN)
-             editMode = (editMode == EDIT_MIN) ? EDIT_MAX : EDIT_MIN;
-         else
-         {
-             currentScreen = HUMIDITY_SCREEN;
-             editMode = EDIT_MIN;
-         }
-     }
-     else if (currentState3 == GPIO_PIN_RESET && lastButtonState3 == GPIO_PIN_SET)
-     {
-         if (currentScreen == INC_TEMP_SCREEN)
-             editMode = (editMode == EDIT_MIN) ? EDIT_MAX : EDIT_MIN;
-         else
-         {
-             currentScreen = INC_TEMP_SCREEN;
-             editMode = EDIT_MIN;
-         }
-     }
-     else if (currentState4 == GPIO_PIN_RESET && lastButtonState4 == GPIO_PIN_SET)
-     {
-         if (currentScreen == INF_TEMP_SCREEN)
-             editMode = (editMode == EDIT_MIN) ? EDIT_MAX : EDIT_MIN;
-         else
-         {
-             currentScreen = INF_TEMP_SCREEN;
-             editMode = EDIT_MIN;
-         }
-     }
-     else if (currentState5 == GPIO_PIN_RESET && lastButtonState5 == GPIO_PIN_SET)
-     {
-         currentScreen = HOME_SCREEN;
-         editMode = EDIT_NONE;
-     }
-     // Saving the button state
-     lastButtonState1 = currentState1;
-     lastButtonState2 = currentState2;
-     lastButtonState3 = currentState3;
-     lastButtonState4 = currentState4;
-     lastButtonState5 = currentState5;
-     // get sensor readings
-     infTemp = STS35_ReadTemperature();
-     SHT31_ReadTempHumidity(&incTemp, &humidity);
-     //changes screens and values of maximum and minimum bounds
-     if (step != 0)
-        {
-            switch(currentScreen)
-            {
-                case BPM_SCREEN:
-                    if (editMode == EDIT_MIN)
-                    {
-                        minBpm += step;
-                        if (minBpm < 0) minBpm = 0;
-                        if (minBpm >= maxBpm) minBpm = maxBpm - 1;
-                    }
-                    else if (editMode == EDIT_MAX)
-                    {
-                        maxBpm += step;
-                        if (maxBpm <= minBpm) maxBpm = minBpm + 1;
-                        if (maxBpm > 300) maxBpm = 300;
-                    }
-                    break;
-                case HUMIDITY_SCREEN:
-                    if (editMode == EDIT_MIN)
-                    {
-                        minHumidity += step;
-                        if (minHumidity < 0) minHumidity = 0;
-                        if (minHumidity >= maxHumidity) minHumidity = maxHumidity - 1;
-                    }
-                    else if (editMode == EDIT_MAX)
-                    {
-                        maxHumidity += step;
-                        if (maxHumidity <= minHumidity) maxHumidity = minHumidity + 1;
-                        if (maxHumidity > 100) maxHumidity = 100;
-                    }
-                    break;
-                case INC_TEMP_SCREEN:
-                    if (editMode == EDIT_MIN)
-                    {
-                        minIncTemp += step;
-                        if (minIncTemp >= maxIncTemp) minIncTemp = maxIncTemp - 1;
-                    }
-                    else if (editMode == EDIT_MAX)
-                    {
-                        maxIncTemp += step;
-                        if (maxIncTemp <= minIncTemp) maxIncTemp = minIncTemp + 1;
-                    }
-                    break;
-                case INF_TEMP_SCREEN:
-                    if (editMode == EDIT_MIN)
-                    {
-                        minInfTemp += step;
-                        if (minInfTemp >= maxInfTemp) minInfTemp = maxInfTemp - 1;
-                    }
-                    else if (editMode == EDIT_MAX)
-                    {
-                        maxInfTemp += step;
-                        if (maxInfTemp <= minInfTemp) maxInfTemp = minInfTemp + 1;
-                    }
-                    break;
-                default:
-                    break;
-            }
-        }
+     uint8_t bpmState = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10);
+     uint8_t humidityState = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_9);
+     uint8_t incubatorTempState = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5);
+     uint8_t infantTempState = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4);
+     uint8_t homeScreenState = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10);
+     // Button press handling for screen navigation and parameter editing.
+
+     // Button 1 : BPM screen
+          if (bpmState == GPIO_PIN_RESET && bpmLastState == GPIO_PIN_SET)
+          {
+              if (currentScreen == BPM_SCREEN)
+                  editMax = !editMax;
+              else
+              {
+                  currentScreen = BPM_SCREEN;
+                  editMax = false;
+              }
+          }
+          // Button 2 : Humidity screen
+          else if (humidityState == GPIO_PIN_RESET && humidityLastState == GPIO_PIN_SET)
+          {
+              if (currentScreen == HUMIDITY_SCREEN)
+                  editMax = !editMax;
+              else
+              {
+                  currentScreen = HUMIDITY_SCREEN;
+                  editMax = false;
+              }
+          }
+          // Button 3 : Incubator temperature screen
+          else if (incubatorTempState == GPIO_PIN_RESET && incubatorTempLastState == GPIO_PIN_SET)
+          {
+              if (currentScreen == INC_TEMP_SCREEN)
+                  editMax = !editMax;
+              else
+              {
+                  currentScreen = INC_TEMP_SCREEN;
+                  editMax = false;
+              }
+          }
+          // Button 4 : Infant temperature screen
+          else if (infantTempState == GPIO_PIN_RESET && infantTempLastState == GPIO_PIN_SET)
+          {
+              if (currentScreen == INF_TEMP_SCREEN)
+                  editMax = !editMax;
+              else
+              {
+                  currentScreen = INF_TEMP_SCREEN;
+                  editMax = false;
+              }
+          }
+          // Button 5 : Home screen
+          else if (homeScreenState == GPIO_PIN_RESET && homeScreenLastState == GPIO_PIN_SET)
+          {
+              currentScreen = HOME_SCREEN;
+          }
+
+          // Saving the button state
+          bpmLastState = bpmState;
+          humidityLastState = humidityState;
+          incubatorTempLastState = incubatorTempState;
+          infantTempLastState = infantTempState;
+          homeScreenLastState = homeScreenState;
+
+          // get sensor readings
+          infTemp = STS35_ReadTemperature();
+          SHT31_ReadTempHumidity(&incTemp, &humidity);
+
+          // Encoder step changes bounds on selected screen
+          if (step != 0 && currentScreen != HOME_SCREEN)
+          {
+              paramBounds *p = &params[currentScreen];
+
+              if (!editMax)
+              {
+                  *p->min += step;
+
+                  if (*p->min < p->absMin) *p->min = p->absMin;
+                  if (*p->min >= *p->max) *p->min = *p->max - 1;
+              }
+              else
+              {
+                  *p->max += step;
+
+                  if (*p->max <= *p->min) *p->max = *p->min + 1;
+                  if (*p->max > p->absMax) *p->max = p->absMax;
+              }
+          }
+
      //Alarms
      //Infant temperature alarm
      if (infTemp > maxInfTemp || infTemp < minInfTemp) alarm = 1;
@@ -361,128 +378,69 @@ int main(void)
          lastUpdateTick = now;   // record time of this update
          lcd_clear(&lcd1);
 		  // Home screen as default
-		  switch(currentScreen){
-		  case HOME_SCREEN:
-			  lcd_gotoxy(&lcd1, 0, 0);
-			  lcd_puts(&lcd1, "Home:");
-//			   BPM line
-			  lcd_gotoxy(&lcd1, 0, 1);
-			  sprintf(buffer, "BPM: %d", bpm);
-			  lcd_puts(&lcd1, buffer);
-			  // Humidity Line
-			  lcd_gotoxy(&lcd1, 11, 1);
-			  sprintf(buffer, "HUM: %4.1f", humidity);
-			  lcd_puts(&lcd1, buffer);
-			  // Incubator Temp Line
-			  lcd_gotoxy(&lcd1, 0, 2);
-			  sprintf(buffer, "INC: %4.1f", incTemp);
-			  lcd_puts(&lcd1, buffer);
-			  // Infant Temp Line
-			  lcd_gotoxy(&lcd1, 11, 2);
-			  sprintf(buffer, "INF: %4.1f", infTemp);
-			  lcd_puts(&lcd1, buffer);
-			  break;
-		  case BPM_SCREEN:
-		      lcd_gotoxy(&lcd1, 0, 0);
-		      lcd_puts(&lcd1, "BPM:");
+         switch(currentScreen)
+         {
+             case HOME_SCREEN:
+                 // Displays all current sensor values
 
-		      lcd_gotoxy(&lcd1, 17, 0);
-		      sprintf(buffer, "%d", bpm);
-		      lcd_puts(&lcd1, buffer);
+                 // Print screen title
+                 lcd_gotoxy(&lcd1, 0, 0);
+                 lcd_puts(&lcd1, "Home:");
 
-		      // Indicator for MIN
-		      lcd_gotoxy(&lcd1, 0, 1);
-		      lcd_puts(&lcd1, (editMode == EDIT_MIN) ? ">" : " ");
+                 // Print BPM value
+                 lcd_gotoxy(&lcd1, 0, 1);
+                 sprintf(buffer, "BPM: %4.1f", bpm);
+                 lcd_puts(&lcd1, buffer);
 
-		      lcd_gotoxy(&lcd1, 1, 1);
-		      lcd_puts(&lcd1, "Min. Bound:");
-		      lcd_gotoxy(&lcd1, 18, 1);
-		      sprintf(buffer, "%d", minBpm);
-		      lcd_puts(&lcd1, buffer);
+                 // Print humidity value
+                 lcd_gotoxy(&lcd1, 11, 1);
+                 sprintf(buffer, "HUM: %4.1f", humidity);
+                 lcd_puts(&lcd1, buffer);
 
-		      // Indicator for MAX
-		      lcd_gotoxy(&lcd1, 0, 2);
-		      lcd_puts(&lcd1, (editMode == EDIT_MAX) ? ">" : " ");
+                 // Print incubator temperature
+                 lcd_gotoxy(&lcd1, 0, 2);
+                 sprintf(buffer, "INC: %4.1f", incTemp);
+                 lcd_puts(&lcd1, buffer);
 
-		      lcd_gotoxy(&lcd1, 1, 2);
-		      lcd_puts(&lcd1, "Max. Bound:");
-		      lcd_gotoxy(&lcd1, 17, 2);
-		      sprintf(buffer, "%d", maxBpm);
-		      lcd_puts(&lcd1, buffer);
-		      break;
-		  case HUMIDITY_SCREEN:
-		      lcd_gotoxy(&lcd1, 0, 0);
-		      lcd_puts(&lcd1, "Humidity Screen");
+                 // Print infant temperature
+                 lcd_gotoxy(&lcd1, 11, 2);
+                 sprintf(buffer, "INF: %4.1f", infTemp);
+                 lcd_puts(&lcd1, buffer);
 
-		      lcd_gotoxy(&lcd1, 16, 0);
-		      sprintf(buffer, "%4.1f", humidity);
-		      lcd_puts(&lcd1, buffer);
+                 break;
 
-		      lcd_gotoxy(&lcd1, 0, 1);
-		      lcd_puts(&lcd1, (editMode == EDIT_MIN) ? ">" : " ");
-		      lcd_gotoxy(&lcd1, 1, 1);
-		      lcd_puts(&lcd1, "Min. Bound:");
-		      lcd_gotoxy(&lcd1, 16, 1);
-		      sprintf(buffer, "%d", minHumidity);
-		      lcd_puts(&lcd1, buffer);
+             case BPM_SCREEN:
+                 // Allows editing of BPM min/max bounds using encoder
 
-		      lcd_gotoxy(&lcd1, 0, 2);
-		      lcd_puts(&lcd1, (editMode == EDIT_MAX) ? ">" : " ");
-		      lcd_gotoxy(&lcd1, 1, 2);
-		      lcd_puts(&lcd1, "Max. Bound:");
-		      lcd_gotoxy(&lcd1, 16, 2);
-		      sprintf(buffer, "%d", maxHumidity);
-		      lcd_puts(&lcd1, buffer);
-		      break;
-		  case INC_TEMP_SCREEN:
-		      lcd_gotoxy(&lcd1, 0, 0);
-		      lcd_puts(&lcd1, "Incubator Temp:");
+                 drawParamScreen(&lcd1, "BPM:",
+                                 bpm, minBpm, maxBpm,
+                                 editMax, buffer);
+                 break;
 
-		      lcd_gotoxy(&lcd1, 16, 0);
-		      sprintf(buffer, "%4.1f", incTemp);
-		      lcd_puts(&lcd1, buffer);
+             case HUMIDITY_SCREEN:
+                 // Allows editing of humidity min/max bounds
 
-		      lcd_gotoxy(&lcd1, 0, 1);
-		      lcd_puts(&lcd1, (editMode == EDIT_MIN) ? ">" : " ");
-		      lcd_gotoxy(&lcd1, 1, 1);
-		      lcd_puts(&lcd1, "Min. Bound:");
-		      lcd_gotoxy(&lcd1, 16, 1);
-		      sprintf(buffer, "%d", minIncTemp);
-		      lcd_puts(&lcd1, buffer);
+                 drawParamScreen(&lcd1, "Humidity",
+                                 humidity, minHumidity, maxHumidity,
+                                 editMax, buffer);
+                 break;
 
-		      lcd_gotoxy(&lcd1, 0, 2);
-		      lcd_puts(&lcd1, (editMode == EDIT_MAX) ? ">" : " ");
-		      lcd_gotoxy(&lcd1, 1, 2);
-		      lcd_puts(&lcd1, "Max. Bound:");
-		      lcd_gotoxy(&lcd1, 16, 2);
-		      sprintf(buffer, "%d", maxIncTemp);
-		      lcd_puts(&lcd1, buffer);
-		      break;
-		  case INF_TEMP_SCREEN:
-		      lcd_gotoxy(&lcd1, 0, 0);
-		      lcd_puts(&lcd1, "Infant Temp:");
+             case INC_TEMP_SCREEN:
+                 // Allows editing of incubator temperature limits
 
-		      lcd_gotoxy(&lcd1, 16, 0);
-		      sprintf(buffer, "%4.1f", infTemp);
-		      lcd_puts(&lcd1, buffer);
+                 drawParamScreen(&lcd1, "Incubator Temp:",
+                                 incTemp, minIncTemp, maxIncTemp,
+                                 editMax, buffer);
+                 break;
 
-		      lcd_gotoxy(&lcd1, 0, 1);
-		      lcd_puts(&lcd1, (editMode == EDIT_MIN) ? ">" : " ");
-		      lcd_gotoxy(&lcd1, 1, 1);
-		      lcd_puts(&lcd1, "Min. Bound:");
-		      lcd_gotoxy(&lcd1, 16, 1);
-		      sprintf(buffer, "%d", minInfTemp);
-		      lcd_puts(&lcd1, buffer);
+             case INF_TEMP_SCREEN:
+                 // Allows editing of infant temperature limits
 
-		      lcd_gotoxy(&lcd1, 0, 2);
-		      lcd_puts(&lcd1, (editMode == EDIT_MAX) ? ">" : " ");
-		      lcd_gotoxy(&lcd1, 1, 2);
-		      lcd_puts(&lcd1, "Max. Bound:");
-		      lcd_gotoxy(&lcd1, 16, 2);
-		      sprintf(buffer, "%d", maxInfTemp);
-		      lcd_puts(&lcd1, buffer);
-		      break;
-			  }
+                 drawParamScreen(&lcd1, "Infant Temp:",
+                                 infTemp, minInfTemp, maxInfTemp,
+                                 editMax, buffer);
+                 break;
+         }
 		  lastScreen = currentScreen;
 	  }
     /* USER CODE END WHILE */
@@ -588,7 +546,7 @@ static void MX_TIM3_Init(void)
   htim3.Init.Period = 65535;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  sConfig.EncoderMode = TIM_ENCODERMODE_TI2;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
   sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
   sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
   sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
